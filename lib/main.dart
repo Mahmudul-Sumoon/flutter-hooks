@@ -20,22 +20,34 @@ class MyApp extends StatelessWidget {
   }
 }
 
-Stream<String> getTime() => Stream.periodic(
-      const Duration(seconds: 1),
-      (_) => DateTime.now().toIso8601String(),
-    );
-
 class MyHomePage extends HookWidget {
   const MyHomePage({Key? key}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
-    final time = useStream(getTime());
+    final controller = useTextEditingController();
+    final text = useState('');
+    useEffect(
+      () {
+        controller.addListener(() {
+          text.value = controller.text;
+        });
+        return null;
+      },
+      [controller],
+    );
     return Scaffold(
       appBar: AppBar(
         title: const Text('Home'),
       ),
-      body: Center(child: Text(time.data ?? 'da')),
+      body: Column(
+        children: [
+          TextField(
+            controller: controller,
+          ),
+          Text('you type ${text.value}'),
+        ],
+      ),
     );
   }
 }
