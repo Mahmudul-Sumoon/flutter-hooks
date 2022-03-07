@@ -1,7 +1,6 @@
-import 'dart:async';
+import 'dart:math';
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
 
 void main() {
@@ -23,22 +22,21 @@ class MyApp extends StatelessWidget {
   }
 }
 
-//const url =
-// 'https://upload.wikimedia.org/wikipedia/commons/thumb/b/b6/Image_created_with_a_mobile_phone.png/220px-Image_created_with_a_mobile_phone.png';
-class CountDown extends ValueNotifier<int> {
-  late StreamSubscription sub;
-  CountDown({required int from}) : super(from) {
-    sub = Stream.periodic(const Duration(seconds: 1), (v) => from - v)
-        .takeWhile((value) => value >= 0)
-        .listen((value) {
-      this.value = value;
-    });
-  }
-  @override
-  void dispose() {
-    sub.cancel();
-    super.dispose();
-  }
+const url =
+    'https://upload.wikimedia.org/wikipedia/commons/thumb/b/b6/Image_created_with_a_mobile_phone.png/220px-Image_created_with_a_mobile_phone.png';
+
+const imageHeight = 300;
+
+extension Normalize on num {
+  num normalized(
+    num selfRangeMin,
+    num selfRangeMax, [
+    num normalizeRangeMin = 0.0,
+    num normalizeRangeMax = 1.0,
+  ]) =>
+      (normalizeRangeMax - normalizeRangeMin) *
+          ((this - selfRangeMin) / (selfRangeMax - selfRangeMin)) +
+      normalizeRangeMin;
 }
 
 class MyHomePage extends HookWidget {
@@ -46,13 +44,59 @@ class MyHomePage extends HookWidget {
 
   @override
   Widget build(BuildContext context) {
-    final countDown = useMemoized(() => CountDown(from: 20));
-    final notifier = useListenable(countDown);
+    final opacity = useAnimationController(
+      duration: const Duration(seconds: 1),
+      initialValue: 1.0,
+      lowerBound: 0.0,
+      upperBound: 1.0,
+    );
+    final size = useAnimationController(
+      duration: const Duration(seconds: 1),
+      initialValue: 1.0,
+      lowerBound: 0.0,
+      upperBound: 1.0,
+    );
+    final controller = useScrollController();
+    useEffect(() {
+      controller.addListener(() {
+        final newOpacity = max(imageHeight - controller.offset, 0.0);
+        final normalized = newOpacity.normalized(0.0, imageHeight);
+        opacity.value = normalized.toDouble();
+        size.value = normalized.toDouble();
+      });
+      return null;
+    }, [controller]);
     return Scaffold(
       appBar: AppBar(
         title: const Text('Home'),
       ),
-      body: Center(child: Text(notifier.value.toString())),
+      body: Column(
+        children: [
+          SizeTransition(
+            sizeFactor: size,
+            axis: Axis.vertical,
+            axisAlignment: -1.0,
+            child: FadeTransition(
+              opacity: opacity,
+              child: Image.network(
+                url,
+                height: imageHeight.toDouble(),
+                fit: BoxFit.cover,
+              ),
+            ),
+          ),
+          Expanded(
+            child: ListView.builder(
+                controller: controller,
+                itemCount: 100,
+                itemBuilder: (context, index) {
+                  return ListTile(
+                    title: Text('person ${index + 1}'),
+                  );
+                }),
+          ),
+        ],
+      ),
     );
   }
 }
